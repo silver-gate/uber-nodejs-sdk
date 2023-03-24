@@ -1,5 +1,6 @@
 const axios = require('axios');
 const qs = require('qs');
+const createHmac = require('create-hmac');
 
 const MAX_RETRIES = 2;
 
@@ -10,6 +11,7 @@ module.exports = class Uber {
     clientId,
     clientSecret,
     customerId,
+    webhookApiSecret, // From webhook settings
     scope = 'eats.deliveries',
     debug,
   }) {
@@ -17,6 +19,7 @@ module.exports = class Uber {
     this.clientId = clientId;
     this.clientSecret = clientSecret;
     this.customerId = customerId;
+    this.webhookApiSecret = webhookApiSecret;
     this.version = version;
     this.scope = scope;
     this.debug = debug;
@@ -92,7 +95,7 @@ module.exports = class Uber {
       const { data } = await axios(payload);
       return data;
     } catch (e) {
-      this.log(e);
+      // this.log(e);
 
       if (e.response && e.response.status === 403 && inRetries < MAX_RETRIES) {
         this.log('Retry for 403');
@@ -110,6 +113,17 @@ module.exports = class Uber {
     }
   }
 
+  // headers['X-Postmates-Signature']
+  verifyWebhook(payload, xPostmatesSignature) {
+    const { webhookApiSecret } = this;
+
+    const uint8 = createHmac('sha256', Buffer.from(webhookApiSecret)).update(payload).digest();
+    const hexString = Buffer.from(uint8).toString('hex');
+
+    return hexString === xPostmatesSignature;
+  }
+
+  // DaaS API
   async createQuote(order) {
     const options = {
       method: 'POST',

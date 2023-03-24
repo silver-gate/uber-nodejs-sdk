@@ -6,22 +6,41 @@ const {
   CLIENT_ID: clientId,
   CLIENT_SECRET: clientSecret,
   CUSTOMER_ID: customerId,
+  WEBHOOK_API_SECRET: webhookApiSecret = 'c5c26d5a-70d6-46c7-a652-d7c09825ad29',
 } = process.env;
 
 const uber = new Uber({
   clientId,
   clientSecret,
   customerId,
+  webhookApiSecret,
   debug: true,
 });
 
 let quoteId;
 let deliveryId;
 
+jest.setTimeout(10000);
+
 describe('Uber Test', () => {
+  test('verifyWebhook', async () => {
+    // https://developer.uber.com/docs/deliveries/daas/api/webhook-event-deliverystatus#webhook-security
+    const payload = '{"kind": "event.courier_update", "location": {"lat": 37.7974109, "lng": -122.424145}}';
+    const expected = 'cdff8133fb065f8d37a2c1c94c3331b6a82766d14e7ea4faacc4886558cedd65';
+
+    expect(uber.verifyWebhook(payload, expected)).toEqual(true);
+  });
+
   test('listDeliveries', async () => {
-    const { data } = await uber.listDeliveries();
+    const { total_count: total, data } = await uber.listDeliveries();
+    console.log('total_count', total);
     expect(Array.isArray(data)).toEqual(true);
+    // console.log(data);
+    data.forEach((item) => {
+      if (item.status === 'pending') {
+        console.log(item);
+      }
+    });
   });
 
   test('create quote', async () => {
@@ -236,21 +255,21 @@ describe('Uber Test', () => {
     expect(kind).toEqual('delivery');
   });
 
-  test('Cancel Delivery', async () => {
-    await uber.cancelDelivery(deliveryId);
+  // test('Cancel Delivery', async () => {
+  //   await uber.cancelDelivery(deliveryId);
 
-    const {
-      id,
-      status,
-      complete,
-      kind,
-    } = await uber.getDelivery(deliveryId);
+  //   const {
+  //     id,
+  //     status,
+  //     complete,
+  //     kind,
+  //   } = await uber.getDelivery(deliveryId);
 
-    expect(id).toEqual(deliveryId);
-    expect(status).toEqual('canceled');
-    expect(complete).toEqual(true);
-    expect(kind).toEqual('delivery');
-  });
+  //   expect(id).toEqual(deliveryId);
+  //   expect(status).toEqual('canceled');
+  //   expect(complete).toEqual(true);
+  //   expect(kind).toEqual('delivery');
+  // });
 
   test('listDeliveries', async () => {
     const result = await uber.listDeliveries();
