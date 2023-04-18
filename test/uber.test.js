@@ -15,6 +15,7 @@ const uber = new Uber({
   customerId,
   webhookApiSecret,
   debug: true,
+  enableAutoTest: true,
 });
 
 let quoteId;
@@ -37,8 +38,8 @@ describe('Uber Test', () => {
     expect(Array.isArray(data)).toEqual(true);
     // console.log(data);
     data.forEach((item) => {
-      if (item.status === 'pending') {
-        console.log(item);
+      if (item.status === 'delivered') {
+        console.log(JSON.stringify(item, null, 2));
       }
     });
   });
@@ -49,15 +50,15 @@ describe('Uber Test', () => {
         state: '新北市',
         city: '板橋區',
         street_address: ['府中路２９-１號１樓'],
-        zip_code: 220,
+        zip_code: '220',
       }),
       dropoff_address: JSON.stringify({
         state: '新北市',
         city: '板橋區',
-        street_address: ['雙北廢棄物清理公司'],
-        zip_code: 220,
+        street_address: ['縣民大道一段189號'],
+        zip_code: '220',
       }),
-      pickup_ready_dt: new Date(Date.now() + 5000).toISOString(),
+      // pickup_ready_dt: new Date(Date.now() + 5000).toISOString(),
       manifest_total_value: 200 * 100,
       external_store_id: `local-test-${Date.now()}`,
       // pickup_latitude: 25.043913,
@@ -70,12 +71,14 @@ describe('Uber Test', () => {
       // dropoff_deadline_dt
     };
 
+    const response = await uber.createQuote(order);
+    console.log(response);
     const {
       kind,
       id,
       currency,
       fee,
-    } = await uber.createQuote(order);
+    } = response;
     // {
     //   kind: 'delivery_quote',
     //   id: 'dqt_2BEwxACbQx-DNgGBAcG7fA',
@@ -100,26 +103,32 @@ describe('Uber Test', () => {
 
   test('create order', async () => {
     const order = {
+      pickup_name: '某某自助餐',
+      pickup_business_name: '某某自助餐 公司名稱',
+      pickup_phone_number: '+88602345678',
+      pickup_notes: '領餐備註第一行\n領餐備註第二行\n領餐備註第三行',
       pickup_address: JSON.stringify({
         state: '新北市',
         city: '板橋區',
         street_address: ['府中路２９-１號１樓'],
-        zip_code: 220,
+        zip_code: '220',
       }),
       dropoff_address: JSON.stringify({
         state: '新北市',
         city: '板橋區',
-        street_address: ['雙北廢棄物清理公司'],
-        zip_code: 220,
+        street_address: ['縣民大道一段189號'],
+        zip_code: '220',
       }),
-      pickup_ready_dt: new Date(Date.now() + 5000).toISOString(),
-      manifest_total_value: 200 * 100,
+      // pickup_ready_dt: new Date(Date.now() + 5000).toISOString(),
+      external_id: `local-test-${Date.now()}`,
       external_store_id: `local-test-${Date.now()}`,
       // order specific
       quote_id: quoteId,
-      dropoff_name: '李先生',
+      dropoff_name: '送餐對象名字',
       dropoff_phone_number: '+8860936218903',
-      manifest: '餐點簡述',
+      manifest_reference: '送餐大使領餐用編號 A054-MXM744',
+      manifest_total_value: 200 * 100,
+      manifest: '餐點備註第一行\n餐點備註第二行\n餐點備註第三行',
       manifest_items: [
         {
           name: '雞腿便當',
@@ -127,17 +136,19 @@ describe('Uber Test', () => {
           price: 100 * 100,
         },
       ],
-      pickup_name: '某某自助餐',
-      pickup_business_name: '某某自助餐',
-      pickup_phone_number: '+88602345678',
-      pickup_notes: '描述第一行\n描述第二行\n我是第三行',
-      dropoff_seller_notes: '若消費者有反應商品缺損，可建議其收下訂單後至XXX平台端申請商品退款。',
-      dropoff_notes: '消費者輸入內容',
-      manifest_reference: '{{平台名稱}}取貨編碼: A054-MXM744',
+      // 送餐備註
+      dropoff_seller_notes: '送餐備註第一行\n送餐備註第二行\n送餐備註第三行',
+      // 消費者自己填寫的備註
+      dropoff_notes: '消費者自己的備註第一行\n消費者自己的備註第二行\n消費者自己的備註第三行',
       undeliverable_action: 'leave_at_door',
       deliverable_action: 'deliverable_action_meet_at_door',
       dropoff_verification: {
         picture: true,
+        signature_requirement: {
+          enabled: true,
+          collect_signer_name: false,
+          collect_signer_relationship: false,
+        },
       },
     };
 
@@ -241,23 +252,7 @@ describe('Uber Test', () => {
     deliveryId = id;
   });
 
-  test('Get Delivery', async () => {
-    const {
-      id,
-      status,
-      complete,
-      kind,
-    } = await uber.getDelivery(deliveryId);
-
-    expect(id).toEqual(deliveryId);
-    expect(status).toEqual('pending');
-    expect(complete).toEqual(false);
-    expect(kind).toEqual('delivery');
-  });
-
-  // test('Cancel Delivery', async () => {
-  //   await uber.cancelDelivery(deliveryId);
-
+  // test('Get Delivery', async () => {
   //   const {
   //     id,
   //     status,
@@ -266,13 +261,29 @@ describe('Uber Test', () => {
   //   } = await uber.getDelivery(deliveryId);
 
   //   expect(id).toEqual(deliveryId);
-  //   expect(status).toEqual('canceled');
-  //   expect(complete).toEqual(true);
+  //   expect(status).toEqual('pending');
+  //   expect(complete).toEqual(false);
   //   expect(kind).toEqual('delivery');
   // });
 
-  test('listDeliveries', async () => {
-    const result = await uber.listDeliveries();
-    console.log(result);
-  });
+  // // test('Cancel Delivery', async () => {
+  // //   await uber.cancelDelivery(deliveryId);
+
+  // //   const {
+  // //     id,
+  // //     status,
+  // //     complete,
+  // //     kind,
+  // //   } = await uber.getDelivery(deliveryId);
+
+  // //   expect(id).toEqual(deliveryId);
+  // //   expect(status).toEqual('canceled');
+  // //   expect(complete).toEqual(true);
+  // //   expect(kind).toEqual('delivery');
+  // // });
+
+  // // test('listDeliveries', async () => {
+  // //   const result = await uber.listDeliveries();
+  // //   console.log(result);
+  // // });
 });

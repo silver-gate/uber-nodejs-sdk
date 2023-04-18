@@ -13,6 +13,7 @@ module.exports = class Uber {
     customerId,
     webhookApiSecret, // From webhook settings
     scope = 'eats.deliveries',
+    enableAutoTest = false,
     debug,
   }) {
     this.authUrl = authUrl;
@@ -22,6 +23,7 @@ module.exports = class Uber {
     this.webhookApiSecret = webhookApiSecret;
     this.version = version;
     this.scope = scope;
+    this.enableAutoTest = enableAutoTest;
     this.debug = debug;
   }
 
@@ -136,6 +138,16 @@ module.exports = class Uber {
   }
 
   async createDelivery(order) {
+    if (this.enableAutoTest) {
+      Object.assign(order, {
+        test_specifications: {
+          robo_courier_specification: {
+            mode: 'auto',
+          },
+        },
+      });
+    }
+
     const options = {
       method: 'POST',
       url: this.getApiUrl('/deliveries'),
